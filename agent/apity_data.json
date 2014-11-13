@@ -1,0 +1,16 @@
+{
+    "Name":"d01",
+    "Config":{
+        "Agents":[
+            {
+                "Name":"a01"
+            }
+        ],
+        "Processes":[
+            {
+                "Name":"p01",
+                "Command":"C:/Windows/notepad.exe"
+            }
+        ]
+    }
+}
