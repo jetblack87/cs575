@@ -1,0 +1,5 @@
+Download and install goclipse eclipse plugin: https://code.google.com/p/goclipse/
+Import 'cs575/agent' as a go project
+Can use Eclipse to perform go builds and runs
+
+Once it's built, you can run '-h' on zkload to find the usage.
