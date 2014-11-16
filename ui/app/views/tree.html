@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html ng-app="treeApp">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../provided/styles/bootstrap.min.css">
+<link rel="stylesheet" href="../../provided/styles/abn_tree.css">
+<link rel="stylesheet" href="../../provided/styles/font-awesome.min.css">
+</head>
+
+<body ng-controller="treeController">
+	<h2>Tree App</h2>
+	<abn-tree tree-data="my_data" tree_control="my_tree"
+		on-select="my_tree_handler(branch)" icon-leaf="fa fa-file"
+		icon-expand="fa fa-caret-right" icon-collapse="fa fa-caret-down"></abn-tree>
+
+	<script src="../../provided/scripts/angular.min.js"></script>
+	<script src="../../provided/scripts/angular-animate.min.js"></script>
+	<script src="../../provided/scripts/abn_tree_directive.js"></script>
+	<script src="../controllers/tree.js"></script>
+</body>
+
+</html>
