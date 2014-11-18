@@ -6,11 +6,14 @@ import (
 	"time"
 	"strconv"
 	"fmt"
+	"errors"
 )
 
 type ZkDAO struct {
 	client *zk.Conn
 }
+
+// #### CONSTRUCTOR ####
 
 func NewZkDAO(zookeeper []string) (*ZkDAO, error) {
 	client, _, err := zk.Connect(zookeeper, time.Second)
@@ -18,6 +21,9 @@ func NewZkDAO(zookeeper []string) (*ZkDAO, error) {
 	zkdao.client = client
 	return zkdao, err
 }
+
+
+// #### PUBLIC METHODS ####
 
 func (zkdao *ZkDAO) LoadDomains(key string, recursive bool) ([]Domain, error) {
 	var domains[] Domain
@@ -76,7 +82,7 @@ func (zkdao *ZkDAO) LoadAgent(key string, recursive bool) (Agent, error) {
 	if exists {
 		processesNode,_,_ := zkdao.client.Children(key + "/processes")
 		for _,processNode := range processesNode {
-			process, err := zkdao.LoadProcess(key + "/" + processNode, recursive)
+			process, err := zkdao.LoadProcess(key + "/processes/" + processNode, recursive)
 			if err != nil { return agent, err }
 			agent.Processes = append(agent.Processes, process) 
 		}
@@ -225,6 +231,29 @@ func (zkdao *ZkDAO) UpdateProcess(key string, process Process, recursive bool) e
 	}
 	return nil
 }
+
+func (zkdao *ZkDAO) Watch(path string, rewatch bool, callback func(string)) (error) {
+	exists,_,eventChan,err := zkdao.client.ExistsW(path)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.New("The path '" + path + "' does not exist" )
+	}
+	goroutine := func() {
+		event := <-eventChan
+		if event.Type.String() == "EventNodeDataChanged" {
+			callback(event.Path)
+			if rewatch {
+				zkdao.Watch(path, rewatch, callback)
+			}
+		}
+	}
+	go goroutine()
+	return nil
+}
+
+// #### PRIVATE METHODS ####
 
 func (zkdao *ZkDAO) createOrSet(nodepath string, data []byte, flags int32, acl []zk.ACL) (string, error) {
 	exists,stat,_ := zkdao.client.Exists(nodepath)
