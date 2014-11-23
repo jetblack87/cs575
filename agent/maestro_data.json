@@ -7,7 +7,7 @@
                 "Processes":[
                     {
                         "Name":"p01",
-                        "ProcessClass":"/d01/config/processes/p01"
+                        "ProcessClass":"/maestro/d01/config/processes/p01"
                     }
                 ]
             }

@@ -32,5 +32,5 @@ type Process struct {
 	ProcessClass string
 	AdminState string
 	OperState string
-	Pid int64
+	Pid int
 }
