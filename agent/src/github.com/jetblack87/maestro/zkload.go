@@ -61,7 +61,7 @@ func DumpFile(zookeeper string) {
 		if err != nil {
 		panic(err)
 	}
-	json, err := json.Marshal(domains)
+	json, err := json.MarshalIndent(domains,""," ")
 	if err != nil {
 		panic(err)
 	}

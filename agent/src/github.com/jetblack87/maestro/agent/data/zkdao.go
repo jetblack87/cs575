@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"fmt"
 	"errors"
+	"bytes"
 )
 
 type ZkDAO struct {
@@ -99,11 +100,13 @@ func (zkdao *ZkDAO) LoadProcess(key string, recursive bool) (Process, error) {
 	exists,_,_ := zkdao.client.Exists(key)
 	if exists {
 		exists,_,_ = zkdao.client.Exists(key + "/command")
+		fmt.Println("Attempting to read command: " + key + "/command") 
 		if exists { 
 			data,_,err := zkdao.client.Get(key + "/command")
 			if err == nil {
 				process.Command = string(data)
 			}
+			fmt.Println("Reading command " + process.Command)
 		}
 		exists,_,_ = zkdao.client.Exists(key + "/arguments")
 		if exists { 
@@ -137,7 +140,12 @@ func (zkdao *ZkDAO) LoadProcess(key string, recursive bool) (Process, error) {
 		if exists { 
 			data,_,err := zkdao.client.Get(key + "/pid")
 			if err == nil {
-				process.Pid, err = strconv.ParseInt(string(data), 10, 32)
+				tempPid, err2 := strconv.ParseInt(string(data), 10, 32)
+				if err2 != nil {
+					fmt.Errorf("Failed to parse pid:\n%s", err2)
+				} else {
+					process.Pid = int(tempPid)
+				}
 			}
 		}
 	} else {
@@ -185,6 +193,7 @@ func (zkdao *ZkDAO) UpdateRuntimeConfig(key string, runtime RuntimeConfig, recur
 }
 
 func (zkdao *ZkDAO) UpdateAgent(key string, agent Agent, recursive bool) error {
+	fmt.Println("Updating agent: " + key)
 	exists,_,_ := zkdao.client.Exists(key)
 	if !exists {
 		_, err := zkdao.createWithParents(key, []byte{}, 0, zk.WorldACL(zk.PermAll))
@@ -200,12 +209,13 @@ func (zkdao *ZkDAO) UpdateAgent(key string, agent Agent, recursive bool) error {
 }
 
 func (zkdao *ZkDAO) UpdateProcess(key string, process Process, recursive bool) error {
+	fmt.Println("Updating process: " + key)
 	exists,_,_ := zkdao.client.Exists(key)
 	if !exists {
 		_, err := zkdao.createWithParents(key, []byte{}, 0, zk.WorldACL(zk.PermAll))
 		if err != nil { return err }
 	}
-	if process.Command != "" { 
+	if process.Command != "" {
 		_, err := zkdao.createOrSet(key + "/command", []byte(process.Command), 0, zk.WorldACL(zk.PermAll))
 		if err != nil { return err }
 	}
@@ -225,14 +235,15 @@ func (zkdao *ZkDAO) UpdateProcess(key string, process Process, recursive bool) e
 		_, err := zkdao.createOrSet(key + "/oper_state", []byte(process.OperState), 0, zk.WorldACL(zk.PermAll))
 		if err != nil { return err }
 	}
-	if process.Pid != 0 {
+	if process.Pid != -1 {
 		_, err := zkdao.createOrSet(key + "/pid", []byte(string(process.Pid)), 0, zk.WorldACL(zk.PermAll))
 		if err != nil { return err }
 	}
 	return nil
 }
 
-func (zkdao *ZkDAO) Watch(path string, rewatch bool, callback func(string)) (error) {
+func (zkdao *ZkDAO) Watch(path string, watchChannel chan<- zk.Event) (error) {
+	fmt.Println("Adding watch: " + path)
 	exists,_,eventChan,err := zkdao.client.ExistsW(path)
 	if err != nil {
 		return err
@@ -240,17 +251,20 @@ func (zkdao *ZkDAO) Watch(path string, rewatch bool, callback func(string)) (err
 	if !exists {
 		return errors.New("The path '" + path + "' does not exist" )
 	}
-	goroutine := func() {
-		event := <-eventChan
-		if event.Type.String() == "EventNodeDataChanged" {
-			callback(event.Path)
-			if rewatch {
-				zkdao.Watch(path, rewatch, callback)
-			}
-		}
-	}
-	go goroutine()
+	go func(to chan<- zk.Event, from <-chan zk.Event) {
+		fmt.Println("Watching: " + path)
+		e := <-from
+		fmt.Println("in between")
+		to <-e
+		fmt.Println("Watched: " + path)
+		zkdao.Watch(path, to)
+	}(watchChannel, eventChan)
 	return nil
+}
+
+func (zkdao *ZkDAO) GetValue(path string) ([]byte, error) {
+	data,_,err := zkdao.client.Get(path)
+	return data,err;
 }
 
 // #### PRIVATE METHODS ####
@@ -258,11 +272,15 @@ func (zkdao *ZkDAO) Watch(path string, rewatch bool, callback func(string)) (err
 func (zkdao *ZkDAO) createOrSet(nodepath string, data []byte, flags int32, acl []zk.ACL) (string, error) {
 	exists,stat,_ := zkdao.client.Exists(nodepath)
 	if exists {
-		_, err := zkdao.client.Set(nodepath, data, stat.Version)
-		return "", err
+		oldData,_,_ := zkdao.client.Get(nodepath)
+		if bytes.Compare(oldData, data) != 0 { 
+			_, err2 := zkdao.client.Set(nodepath, data, stat.Version)
+			return "", err2
+		}
 	} else {
 		return zkdao.client.Create(nodepath, data, flags, acl)
 	}
+	return "", nil
 }
 
 func (zkdao *ZkDAO) createWithParents(nodepath string, data []byte, flags int32, acl []zk.ACL) (string, error) {
