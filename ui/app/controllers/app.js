@@ -24,6 +24,8 @@
 			$location) {
 		var apple_selected, tree, treedata_avm;
 		$scope.my_tree_handler = function(branch) {
+			$location.path = "/details/vegetable";
+			
 			var _ref;
 			$scope.output = 'You selected: ' + branch.label;
 			if ((_ref = branch.data) != null ? _ref.description : void 0) {
@@ -61,7 +63,6 @@
 				data_can_contain_anything : true
 			},
 			onSelect : function(branch) {
-				$location.path = "/details/vegetable";
 				return $scope.output = 'Vegetable: ' + branch.data.definition;
 			},
 			children : [ {
