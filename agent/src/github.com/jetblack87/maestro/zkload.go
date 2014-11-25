@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/jetblack87/apity/agent/data"
+	"github.com/jetblack87/maestro/agent/data"
 	"io/ioutil"
+	"strings"
 )
 
 const APP_VERSION = "0.1"
@@ -13,7 +14,7 @@ const APP_VERSION = "0.1"
 // The flag package provides a default help printer via -h switch
 var versionFlag *bool = flag.Bool("v", false, "Print the version number.")
 var zookeeper *string = flag.String("zookeeper", "localhost:2181", "The ZooKeeper connection string (defaults to 'localhost:2182').")
-var filename *string = flag.String("file", "apity_data.json", "Supply the file to load.")
+var filename *string = flag.String("file", "maestro_data.json", "Supply the file to load.")
 var dump *bool = flag.Bool("dump", false, "Dumps the zookeeper config.")
 
 func main() {
@@ -40,11 +41,11 @@ func LoadFile(zookeeper string, jsonData []byte) {
 	if err != nil {
 		panic(err)
 	}
-	zkdao, err := data.NewZkDAO([]string{zookeeper})
+	zkdao, err := data.NewZkDAO(strings.Split(zookeeper, ","))
 	if err != nil {
 		panic(err)
 	}
-	err = zkdao.UpdateDomain("/apity/" + domain.Name, domain, true)
+	err = zkdao.UpdateDomain("/maestro/" + domain.Name, domain, true)
 	if err != nil {
 		panic(err)
 	}
@@ -52,15 +53,15 @@ func LoadFile(zookeeper string, jsonData []byte) {
 }
 
 func DumpFile(zookeeper string) {
-	zkdao, err := data.NewZkDAO([]string{zookeeper})
+	zkdao, err := data.NewZkDAO(strings.Split(zookeeper, ","))
 	if err != nil {
 		panic(err)
 	}
-	domains, err := zkdao.LoadDomains("/apity", true)
+	domains, err := zkdao.LoadDomains("/maestro", true)
 		if err != nil {
 		panic(err)
 	}
-	json, err := json.Marshal(domains)
+	json, err := json.MarshalIndent(domains,""," ")
 	if err != nil {
 		panic(err)
 	}
