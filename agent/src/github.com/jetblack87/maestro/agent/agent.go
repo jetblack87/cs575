@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
 	"path"
 	"github.com/samuel/go-zookeeper/zk"
@@ -34,6 +35,10 @@ const MAX_START_RETRIES = 3
 func main() {
 
 	flag.Parse() // Scan the arguments list
+
+	// Setup signal channel
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, os.Interrupt, os.Kill)
 
 
     // Setup logging
@@ -84,7 +89,7 @@ func main() {
 	}
 
 	// Create channel used for watching ZK nodes
-	watchChannel := make(chan zk.Event)
+	watchChannel := make(chan zk.Event, 1)
 
 	// Remove old runtime config for this agent
 	err = zkdao.RemoveRecursive("/maestro/"+*domainName+"/runtime/agents/"+agent.Name)
@@ -130,8 +135,8 @@ func main() {
 	// Create out request (including channels)
 	request = &processStartRequest{
 		processes : agent.Processes,
-		commandChan : make(chan *command, len(agent.Processes)),
-		resultChan : make(chan *result, len(agent.Processes))}
+		commandChan : make(chan *command, 1),
+		resultChan : make(chan *result, 1)}
 
 	go startAndMonitorProcesses(request)
 
@@ -180,6 +185,17 @@ func main() {
 	    			zkdao.SetValue(p.Key + "/admin_state", []byte(p.AdminState))
 	    		}
 			}
+			case <-signalChannel: // FIXME this doesn't seem to work (at least not on Windows)
+			log.Println("Received signal")
+			a,err := zkdao.LoadAgent("/maestro/"+*domainName+"/runtime/agents/"+agent.Name,true)
+			if err != nil {
+				log.Println("Error retrieving agent")
+			} else {
+				for _, process := range a.Processes {
+					request.commandChan <- &command{process : process, adminState : "off"}
+				}
+			}
+			os.Exit(0)
 		}
 	}
 }
