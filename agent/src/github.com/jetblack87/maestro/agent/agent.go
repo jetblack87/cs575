@@ -3,16 +3,15 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"github.com/jetblack87/maestro/agent/data"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
-	"regexp"
 	"path"
 	"github.com/samuel/go-zookeeper/zk"
 	"time"
+	"log"
 )
 
 const APP_VERSION = "0.1"
@@ -24,6 +23,7 @@ var agentName *string = flag.String("name", "", "REQUIRED: The name of the agent
 var domainName *string = flag.String("domain", "", "REQUIRED: The name of the domain in which this agent lives.")
 var agentConfig *string = flag.String("agentConfig", "", "Supply a json file that contains specific configuration for this agent.")
 var processesConfig *string = flag.String("processesConfig", "", "Supply a json file that contains specific configuration any processes.")
+var logfilePath *string = flag.String("logfile", "stdout", "The path to the logfile.")
 
 var zkdao data.ZkDAO
 var request *processStartRequest
@@ -32,13 +32,23 @@ var request *processStartRequest
 const MAX_START_RETRIES = 3 
 
 func main() {
-	fmt.Println("Hello, world")
 
 	flag.Parse() // Scan the arguments list
 
+
+    // Setup logging
+	if *logfilePath != "stdout" {
+		f, err := os.OpenFile(*logfilePath, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+		if err != nil {
+		    log.Printf("error opening file: %v", err)
+		}
+		defer f.Close()
+		log.SetOutput(f)
+	}
+
 	// Check the parameters
 	if *versionFlag {
-		fmt.Println("Version:", APP_VERSION)
+		log.Println("Version:", APP_VERSION)
 		os.Exit(0)
 	}
 	if *agentName == "" {
@@ -47,6 +57,8 @@ func main() {
 	if *domainName == "" {
 		panic("-domain is required")
 	}
+	
+	log.Printf("maestro agent starting for domain '%s' and agent '%s'\n", *domainName, *domainName)
 
 	zkdao, err := data.NewZkDAO(strings.Split(*zookeeper, ","))
 	if err != nil {
@@ -65,6 +77,7 @@ func main() {
 		panic(err)
 	}
 
+	log.Println("Loading the agent configuration")
 	agent, err := zkdao.LoadAgent("/maestro/"+*domainName+"/config/agents/"+*agentName, true)
 	if err != nil {
 		panic(err)
@@ -73,8 +86,12 @@ func main() {
 	// Create channel used for watching ZK nodes
 	watchChannel := make(chan zk.Event)
 
+	// Remove old runtime config for this agent
+	err = zkdao.RemoveRecursive("/maestro/"+*domainName+"/runtime/agents/"+agent.Name)
+
 	// Add processes to the runtime configuration, adding watches to admin_state
 	for key := range agent.Processes {
+		log.Println("Loading processes from config: " + agent.Processes[key].ProcessClass)
 		agent.Processes[key], err = zkdao.LoadProcess(agent.Processes[key].ProcessClass, true)
 		if err != nil {
 			panic(err)
@@ -82,31 +99,35 @@ func main() {
 		agent.Processes[key].Key = "/maestro/"+*domainName+"/runtime/agents/"+agent.Name+"/processes/"+agent.Processes[key].Name
 		if agent.Processes[key].AdminState == "" {
 			// Default to on
+			log.Println("Defaulting admin_state to 'on'")
 			agent.Processes[key].AdminState = "on"
 		}
 		agent.Processes[key].OperState = "off"
-		
-		adminStatePath := agent.Processes[key].Key+"/admin_state"
-		fmt.Println("Adding watch to node: " + adminStatePath)
-		err := zkdao.Watch(adminStatePath, watchChannel)
-		if err != nil {
-			fmt.Println("Failed to add watch to process node:\n" + err.Error())
-		}
 	}
 
-	fmt.Println("Adding agent to runtime configuration")
-	err = zkdao.RemoveRecursive("/maestro/"+*domainName+"/runtime/agents/"+agent.Name)
+	log.Println("Adding agent to runtime configuration")
 	if err != nil {
-		fmt.Errorf("Failed to remove agent runtime configuration")
+		log.Printf("Failed to remove agent runtime configuration")
 		panic(err)
 	}
 	err = zkdao.UpdateAgent("/maestro/"+*domainName+"/runtime/agents/"+agent.Name, agent, true)
 	if err != nil {
 		panic(err)
 	}
+
+	// Add watches for all admin_state nodes
+	for key := range agent.Processes {
+		adminStatePath := agent.Processes[key].Key+"/admin_state"
+		log.Println("Adding watch to node: " + adminStatePath)
+		err := zkdao.Watch(adminStatePath, watchChannel)
+		if err != nil {
+			log.Println("Failed to add watch to process node:\n" + err.Error())
+		}
+	}
 	
-	fmt.Println("Starting process monitoring")
-	
+	log.Println("Starting process monitoring")
+
+	// Create out request (including channels)
 	request = &processStartRequest{
 		processes : agent.Processes,
 		commandChan : make(chan *command, len(agent.Processes)),
@@ -114,28 +135,26 @@ func main() {
 
 	go startAndMonitorProcesses(request)
 
-	fmt.Println("looping over channels")
+	log.Println("Process monitoring started, waiting on channels")
 	for {
 		select {
 			case w := <-watchChannel:
-			fmt.Println("watch")
 			if w.Type.String() == "EventNodeDataChanged" {
 				adminState, err := zkdao.GetValue(w.Path)
 				if err != nil {
-					fmt.Errorf("Error getting data for path '%s': %s\n", w.Path, err.Error())
+					log.Printf("Error getting data for path '%s': %s\n", w.Path, err.Error())
 				} else {
 					process, err2 := zkdao.LoadProcess(path.Dir(w.Path), true)
 					if err2 != nil {
-						fmt.Errorf("Error loading process '%s': %s\n", w.Path, err2)
+						log.Printf("Error loading process '%s': %s\n", w.Path, err2)
 					} else {
 						request.commandChan <- &command{process : process, adminState : string(adminState)}
 					}
 				}
 			}
 			case r := <-request.resultChan:
-			fmt.Println("result")
 			if r.err != nil {
-				fmt.Errorf("An error occured running a process:%s\n", r.err.Error())
+				log.Printf("An error occured running a process:%s\n", r.err.Error())
 				// Failed to start, turn off
 				r.process.OperState = "off"
 				r.process.AdminState = "off"
@@ -148,12 +167,12 @@ func main() {
 				} else {
 					p,err = zkdao.LoadProcess(r.key, false)
 					if err != nil {
-						fmt.Errorf("Failed to load process: %s\n", err.Error())	
+						log.Printf("Failed to load process: %s\n", err.Error())	
 					} else {
 						p.OperState = r.operState
 					}
 				}
-				fmt.Printf("Process '%s' oper_state = '%s'\n", p.Key, p.OperState)
+				log.Printf("Process '%s' oper_state = '%s'\n", p.Key, p.OperState)
 	    		zkdao.UpdateProcess(r.process.Key, r.process, false)
 	    		
 	    		// Touch the admin_state node to get process turned back on
@@ -168,6 +187,7 @@ func main() {
 func loadAgentConfig(agentConfig, agentName, domainName string) error {
 	// Load the file if it was supplied
 	if agentConfig != "" {
+		log.Println("Loading agent config: " + agentConfig)
 		jsonData, err := ioutil.ReadFile(agentConfig)
 		if err != nil {
 			return err
@@ -190,6 +210,7 @@ func loadAgentConfig(agentConfig, agentName, domainName string) error {
 func loadProcessesConfig(processesConfig, domainName string) error {
 	// Load the file if it was supplied
 	if processesConfig != "" {
+		log.Println("Loading processes config: " + processesConfig)
 		jsonData, err := ioutil.ReadFile(processesConfig)
 		if err != nil {
 			return err
@@ -211,33 +232,16 @@ func loadProcessesConfig(processesConfig, domainName string) error {
 	return nil
 }
 
-func watch(nodepath string, data []byte) {
-	fmt.Println("watched node changed")
-	var adminStateRegexp = regexp.MustCompile(`admin_state$`)
-	if adminStateRegexp.MatchString(nodepath) {
-		processPath := path.Dir(nodepath)
-		adminState := string(data)
-		if request != nil {
-			process, err2 := zkdao.LoadProcess(processPath, true)
-			if err2 != nil {
-				fmt.Errorf("Error loading process '%s': %s\n", processPath, err2)
-			} else {
-				request.commandChan <- &command{process : process, adminState : adminState}
-			}
-		}
-	}
-}
-
 func startAndMonitorProcesses (startRequest *processStartRequest) {
 	// Mapping of process key (string) to command
 	processMap := make(map[string]*exec.Cmd)
 	// Start all of the processes
 	for key := range startRequest.processes {
 		if startRequest.processes[key].AdminState == "on" {
-        	fmt.Println("Starting process: " + startRequest.processes[key].Key)
+        	log.Println("Starting process: " + startRequest.processes[key].Key)
 			cmd, err := startProcess(startRequest.processes[key])
 			if err != nil {
-				fmt.Printf("Error starting process:\n%s\n", err.Error())
+				log.Printf("Error starting process:\n%s\n", err.Error())
 				startRequest.resultChan <- &result{process : startRequest.processes[key], err : err}
 			} else {
 				processMap[startRequest.processes[key].Key] = cmd
@@ -250,24 +254,25 @@ func startAndMonitorProcesses (startRequest *processStartRequest) {
 	}
 	
 	// Monitor the processes
+	log.Println("Monitoring command channel and processes")
 	for {
 		select {
 			case c := <-startRequest.commandChan:
 		    	switch c.adminState {
 		    	case "off":
-		    		fmt.Println("Killing process: " + c.process.Key)
+		    		log.Println("Killing process: " + c.process.Key)
 		    		if processMap[c.process.Key] != nil {
 				        processMap[c.process.Key].Process.Kill()
 				        delete(processMap, c.process.Key)
 				    } else {
-				    	fmt.Println("Process is already stopped: " + c.process.Key)
+				    	log.Println("Process is already stopped: " + c.process.Key)
 				    }
 		    	case "on":
 		        	if processMap[c.process.Key] == nil {
-			        	fmt.Println("Starting process: " + c.process.Key)
+			        	log.Println("Starting process: " + c.process.Key)
 		        		cmd, err := startProcess(c.process)
 						if err != nil {
-							fmt.Errorf("Error starting process:\n%s", err.Error())
+							log.Printf("Error starting process:\n%s", err.Error())
 							c.process.OperState = "off"
 							startRequest.resultChan <- &result{process : c.process,
 															   err : err}
@@ -278,12 +283,12 @@ func startAndMonitorProcesses (startRequest *processStartRequest) {
 							startRequest.resultChan <- &result{process : c.process}
 						}
 		        	} else {
-		        		fmt.Println("Process is already running: " + c.process.Key)
+		        		log.Println("Process is already running: " + c.process.Key)
 		        	}
 		    	}
 			default:
 			   // Check running processes
-			   fmt.Println("Checking processes")
+			   log.Println("Checking processes")
 			   for key,process := range processMap {
 			   	if process.ProcessState != nil && process.ProcessState.Exited() {
 			   		startRequest.resultChan <- &result{key : key,
@@ -298,7 +303,7 @@ func startAndMonitorProcesses (startRequest *processStartRequest) {
 }
 
 func startProcess (process data.Process) (*exec.Cmd, error) {
-	fmt.Println("Process command: " + process.Command)
+	log.Println("Process command: " + process.Command)
 	var cmd *exec.Cmd
 	if process.Arguments != "" {
 		cmd = exec.Command(process.Command, process.Arguments)
@@ -308,7 +313,7 @@ func startProcess (process data.Process) (*exec.Cmd, error) {
 	success := false
 	var err error
 	for i:=0; i<MAX_START_RETRIES && !success; i++ {
-		fmt.Println("Attempting to start: " + process.Name)
+		log.Println("Attempting to start: " + process.Name)
 		err = cmd.Start()
 		// Create new thread to wait on this process in order to reap it
 		go cmd.Wait()
@@ -321,6 +326,8 @@ func startProcess (process data.Process) (*exec.Cmd, error) {
 	}
 	return cmd, err
 }
+
+// Private structures for communication
 
 type processStartRequest struct {
 	processes[] data.Process

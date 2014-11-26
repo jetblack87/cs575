@@ -5,7 +5,7 @@ import (
 	"path"
 	"time"
 	"strconv"
-	"fmt"
+	"log"
 	"errors"
 	"bytes"
 )
@@ -47,7 +47,7 @@ func (zkdao *ZkDAO) LoadDomain(key string, recursive bool) (Domain, error) {
 		if err != nil { return domain, err }
 		domain.Config = config
 	} else {
-        fmt.Println("Domain node does not exist: " + key)
+        log.Println("Domain node does not exist: " + key)
 	}
 	return domain, nil
 }
@@ -70,7 +70,7 @@ func (zkdao *ZkDAO) LoadStaticConfig(key string, recursive bool) (StaticConfig, 
 			config.Processes = append(config.Processes, process) 
 		}
 	} else {
-        fmt.Println("Static Config node does not exist: " + key)
+        log.Println("Static Config node does not exist: " + key)
 	}
 	return config, nil
 }
@@ -88,7 +88,7 @@ func (zkdao *ZkDAO) LoadAgent(key string, recursive bool) (Agent, error) {
 			agent.Processes = append(agent.Processes, process) 
 		}
 	} else {
-        fmt.Println("Agent node does not exist: " + key)
+        log.Println("Agent node does not exist: " + key)
 	}
 	return agent, nil
 }
@@ -100,13 +100,12 @@ func (zkdao *ZkDAO) LoadProcess(key string, recursive bool) (Process, error) {
 	exists,_,_ := zkdao.client.Exists(key)
 	if exists {
 		exists,_,_ = zkdao.client.Exists(key + "/command")
-		fmt.Println("Attempting to read command: " + key + "/command") 
 		if exists { 
 			data,_,err := zkdao.client.Get(key + "/command")
 			if err == nil {
 				process.Command = string(data)
 			}
-			fmt.Println("Reading command " + process.Command)
+			log.Println("Reading command " + process.Command)
 		}
 		exists,_,_ = zkdao.client.Exists(key + "/arguments")
 		if exists { 
@@ -140,16 +139,16 @@ func (zkdao *ZkDAO) LoadProcess(key string, recursive bool) (Process, error) {
 		if exists { 
 			data,_,err := zkdao.client.Get(key + "/pid")
 			if err == nil {
-				tempPid, err2 := strconv.ParseInt(string(data), 10, 32)
-				if err2 != nil {
-					fmt.Errorf("Failed to parse pid:\n%s", err2)
+				tempPid, err := strconv.ParseInt(string(data), 10, 32)
+				if err != nil {
+					log.Printf("Failed to parse pid '%s':\n%s", key + "/pid", err)
 				} else {
 					process.Pid = int(tempPid)
 				}
 			}
 		}
 	} else {
-        fmt.Println("Process node does not exist: " + key)
+        log.Println("Process node does not exist: " + key)
 	}
 	return process, nil
 }
@@ -193,7 +192,7 @@ func (zkdao *ZkDAO) UpdateRuntimeConfig(key string, runtime RuntimeConfig, recur
 }
 
 func (zkdao *ZkDAO) UpdateAgent(key string, agent Agent, recursive bool) error {
-	fmt.Println("Updating agent: " + key)
+	log.Println("Updating agent: " + key)
 	exists,_,_ := zkdao.client.Exists(key)
 	if !exists {
 		_, err := zkdao.createWithParents(key, []byte{}, 0, zk.WorldACL(zk.PermAll))
@@ -209,7 +208,7 @@ func (zkdao *ZkDAO) UpdateAgent(key string, agent Agent, recursive bool) error {
 }
 
 func (zkdao *ZkDAO) UpdateProcess(key string, process Process, recursive bool) error {
-	fmt.Println("Updating process: " + key)
+	log.Println("Updating process: " + key)
 	exists,_,_ := zkdao.client.Exists(key)
 	if !exists {
 		_, err := zkdao.createWithParents(key, []byte{}, 0, zk.WorldACL(zk.PermAll))
@@ -236,14 +235,14 @@ func (zkdao *ZkDAO) UpdateProcess(key string, process Process, recursive bool) e
 		if err != nil { return err }
 	}
 	if process.Pid != -1 {
-		_, err := zkdao.createOrSet(key + "/pid", []byte(string(process.Pid)), 0, zk.WorldACL(zk.PermAll))
+		_, err := zkdao.createOrSet(key + "/pid", []byte(strconv.FormatInt(int64(process.Pid), 10)), 0, zk.WorldACL(zk.PermAll))
 		if err != nil { return err }
 	}
 	return nil
 }
 
 func (zkdao *ZkDAO) Watch(path string, watchChannel chan<- zk.Event) (error) {
-	fmt.Println("Adding watch: " + path)
+	log.Println("Adding watch: " + path)
 	exists,_,eventChan,err := zkdao.client.ExistsW(path)
 	if err != nil {
 		return err
@@ -252,11 +251,8 @@ func (zkdao *ZkDAO) Watch(path string, watchChannel chan<- zk.Event) (error) {
 		return errors.New("The path '" + path + "' does not exist" )
 	}
 	go func(to chan<- zk.Event, from <-chan zk.Event) {
-		fmt.Println("Watching: " + path)
 		e := <-from
-		fmt.Println("in between")
 		to <-e
-		fmt.Println("Watched: " + path)
 		zkdao.Watch(path, to)
 	}(watchChannel, eventChan)
 	return nil
