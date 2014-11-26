@@ -266,6 +266,37 @@ func (zkdao *ZkDAO) GetValue(path string) ([]byte, error) {
 	data,_,err := zkdao.client.Get(path)
 	return data,err;
 }
+func (zkdao *ZkDAO) SetValue(path string, data []byte) (error) {
+	exists,stat,err := zkdao.client.Exists(path)
+	if err != nil {
+		return err
+	}
+	if exists {
+		_, err = zkdao.client.Set(path, data, stat.Version)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (zkdao *ZkDAO) RemoveRecursive(path string) (error) {
+	exists,stat,err := zkdao.client.Exists(path)
+	if exists && err != nil {
+		return err
+	}
+	if exists {
+		children,_,_ := zkdao.client.Children(path)
+		for _,child := range children {
+			err := zkdao.RemoveRecursive(path + "/" + child)
+			if err != nil {
+				return err
+			}
+		}
+		return zkdao.client.Delete(path, stat.Version)
+	}
+	return nil
+}
 
 // #### PRIVATE METHODS ####
 
@@ -273,7 +304,7 @@ func (zkdao *ZkDAO) createOrSet(nodepath string, data []byte, flags int32, acl [
 	exists,stat,_ := zkdao.client.Exists(nodepath)
 	if exists {
 		oldData,_,_ := zkdao.client.Get(nodepath)
-		if bytes.Compare(oldData, data) != 0 { 
+		if bytes.Compare(oldData, data) != 0 {
 			_, err2 := zkdao.client.Set(nodepath, data, stat.Version)
 			return "", err2
 		}

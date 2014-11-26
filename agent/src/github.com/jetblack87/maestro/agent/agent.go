@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"path"
 	"github.com/samuel/go-zookeeper/zk"
+	"time"
 )
 
 const APP_VERSION = "0.1"
@@ -27,11 +28,15 @@ var processesConfig *string = flag.String("processesConfig", "", "Supply a json 
 var zkdao data.ZkDAO
 var request *processStartRequest
 
+
+const MAX_START_RETRIES = 3 
+
 func main() {
 	fmt.Println("Hello, world")
 
 	flag.Parse() // Scan the arguments list
 
+	// Check the parameters
 	if *versionFlag {
 		fmt.Println("Version:", APP_VERSION)
 		os.Exit(0)
@@ -65,15 +70,20 @@ func main() {
 		panic(err)
 	}
 
+	// Create channel used for watching ZK nodes
 	watchChannel := make(chan zk.Event)
 
+	// Add processes to the runtime configuration, adding watches to admin_state
 	for key := range agent.Processes {
 		agent.Processes[key], err = zkdao.LoadProcess(agent.Processes[key].ProcessClass, true)
 		if err != nil {
 			panic(err)
 		}
 		agent.Processes[key].Key = "/maestro/"+*domainName+"/runtime/agents/"+agent.Name+"/processes/"+agent.Processes[key].Name
-		agent.Processes[key].AdminState = "on"
+		if agent.Processes[key].AdminState == "" {
+			// Default to on
+			agent.Processes[key].AdminState = "on"
+		}
 		agent.Processes[key].OperState = "off"
 		
 		adminStatePath := agent.Processes[key].Key+"/admin_state"
@@ -85,6 +95,11 @@ func main() {
 	}
 
 	fmt.Println("Adding agent to runtime configuration")
+	err = zkdao.RemoveRecursive("/maestro/"+*domainName+"/runtime/agents/"+agent.Name)
+	if err != nil {
+		fmt.Errorf("Failed to remove agent runtime configuration")
+		panic(err)
+	}
 	err = zkdao.UpdateAgent("/maestro/"+*domainName+"/runtime/agents/"+agent.Name, agent, true)
 	if err != nil {
 		panic(err)
@@ -102,19 +117,12 @@ func main() {
 	fmt.Println("looping over channels")
 	for {
 		select {
-			case r := <-request.resultChan:
-			fmt.Println("request")
-			if r.err != nil {
-				fmt.Errorf("An error occured running a process:%s\n", r.err.Error())
-			} else {
-	    		fmt.Printf("Started process with with: %d\n", r.pid)
-			}
 			case w := <-watchChannel:
 			fmt.Println("watch")
 			if w.Type.String() == "EventNodeDataChanged" {
 				adminState, err := zkdao.GetValue(w.Path)
 				if err != nil {
-					fmt.Errorf("Error getting data for path '%s': %s\n", w.Path, err.Error())				
+					fmt.Errorf("Error getting data for path '%s': %s\n", w.Path, err.Error())
 				} else {
 					process, err2 := zkdao.LoadProcess(path.Dir(w.Path), true)
 					if err2 != nil {
@@ -123,6 +131,35 @@ func main() {
 						request.commandChan <- &command{process : process, adminState : string(adminState)}
 					}
 				}
+			}
+			case r := <-request.resultChan:
+			fmt.Println("result")
+			if r.err != nil {
+				fmt.Errorf("An error occured running a process:%s\n", r.err.Error())
+				// Failed to start, turn off
+				r.process.OperState = "off"
+				r.process.AdminState = "off"
+				zkdao.UpdateProcess(r.process.Key, r.process, false)
+			} else {
+				var p data.Process
+	    		// Update the admin_state and pid in ZK
+				if r.process.Key != "" {
+					p = r.process
+				} else {
+					p,err = zkdao.LoadProcess(r.key, false)
+					if err != nil {
+						fmt.Errorf("Failed to load process: %s\n", err.Error())	
+					} else {
+						p.OperState = r.operState
+					}
+				}
+				fmt.Printf("Process '%s' oper_state = '%s'\n", p.Key, p.OperState)
+	    		zkdao.UpdateProcess(r.process.Key, r.process, false)
+	    		
+	    		// Touch the admin_state node to get process turned back on
+	    		if p.AdminState == "on" && p.OperState == "off" {
+	    			zkdao.SetValue(p.Key + "/admin_state", []byte(p.AdminState))
+	    		}
 			}
 		}
 	}
@@ -196,43 +233,67 @@ func startAndMonitorProcesses (startRequest *processStartRequest) {
 	processMap := make(map[string]*exec.Cmd)
 	// Start all of the processes
 	for key := range startRequest.processes {
-		cmd, err := startProcess(startRequest.processes[key])
-		if err != nil {
-			fmt.Errorf("Error starting process:\n%s", err.Error())
-			startRequest.resultChan <- &result{err : err}
-		} else {
-			processMap[startRequest.processes[key].Key] = cmd
-			// Send the result back
-			startRequest.resultChan <- &result{pid : cmd.Process.Pid}
+		if startRequest.processes[key].AdminState == "on" {
+        	fmt.Println("Starting process: " + startRequest.processes[key].Key)
+			cmd, err := startProcess(startRequest.processes[key])
+			if err != nil {
+				fmt.Printf("Error starting process:\n%s\n", err.Error())
+				startRequest.resultChan <- &result{process : startRequest.processes[key], err : err}
+			} else {
+				processMap[startRequest.processes[key].Key] = cmd
+				// Send the result back
+				startRequest.processes[key].OperState = "on"
+				startRequest.processes[key].Pid = cmd.Process.Pid
+				startRequest.resultChan <- &result{process : startRequest.processes[key]}
+			}
 		}
 	}
 	
-	for c := range startRequest.commandChan {
-    	switch c.adminState {
-    	case "off":
-    		fmt.Println("Killing process: " + c.process.Key)
-    		if processMap[c.process.Key] != nil {
-		        processMap[c.process.Key].Process.Kill()
-		        processMap[c.process.Key] = nil
-		    } else {
-		    	fmt.Println("Process is already stopped: " + c.process.Key)
-		    }
-    	case "on":
-        	if processMap[c.process.Key] == nil {
-	        	fmt.Println("Starting process: " + c.process.Key)
-        		cmd, err := startProcess(c.process)
-				if err != nil {
-					fmt.Errorf("Error starting process:\n%s", err.Error())
-					startRequest.resultChan <- &result{err : err}
-				} else {
-					processMap[c.process.Key] = cmd
-					// Send the result back
-					startRequest.resultChan <- &result{pid : cmd.Process.Pid}
-				}
-        	} else {
-        		fmt.Println("Process is already running: " + c.process.Key)
-        	}
-    	}
+	// Monitor the processes
+	for {
+		select {
+			case c := <-startRequest.commandChan:
+		    	switch c.adminState {
+		    	case "off":
+		    		fmt.Println("Killing process: " + c.process.Key)
+		    		if processMap[c.process.Key] != nil {
+				        processMap[c.process.Key].Process.Kill()
+				        delete(processMap, c.process.Key)
+				    } else {
+				    	fmt.Println("Process is already stopped: " + c.process.Key)
+				    }
+		    	case "on":
+		        	if processMap[c.process.Key] == nil {
+			        	fmt.Println("Starting process: " + c.process.Key)
+		        		cmd, err := startProcess(c.process)
+						if err != nil {
+							fmt.Errorf("Error starting process:\n%s", err.Error())
+							c.process.OperState = "off"
+							startRequest.resultChan <- &result{process : c.process,
+															   err : err}
+						} else {
+							processMap[c.process.Key] = cmd
+							// Send the result back
+							c.process.OperState = "on"
+							startRequest.resultChan <- &result{process : c.process}
+						}
+		        	} else {
+		        		fmt.Println("Process is already running: " + c.process.Key)
+		        	}
+		    	}
+			default:
+			   // Check running processes
+			   fmt.Println("Checking processes")
+			   for key,process := range processMap {
+			   	if process.ProcessState != nil && process.ProcessState.Exited() {
+			   		startRequest.resultChan <- &result{key : key,
+			   										   operState : "off",
+			   										   success : process.ProcessState.Success()}
+                    delete(processMap, key)
+			   	}
+			   }
+			   time.Sleep(5 * time.Second)		   
+		}
 	}
 }
 
@@ -244,11 +305,21 @@ func startProcess (process data.Process) (*exec.Cmd, error) {
 	} else {
 		cmd = exec.Command(process.Command)
 	}
-	err := cmd.Start()
-	if err != nil {
-		return nil, err
+	success := false
+	var err error
+	for i:=0; i<MAX_START_RETRIES && !success; i++ {
+		fmt.Println("Attempting to start: " + process.Name)
+		err = cmd.Start()
+		// Create new thread to wait on this process in order to reap it
+		go cmd.Wait()
+		if err == nil {
+			success = true
+		}
+        if !success {
+	        time.Sleep(5 * time.Second)		   
+        }
 	}
-	return cmd, nil
+	return cmd, err
 }
 
 type processStartRequest struct {
@@ -263,7 +334,9 @@ type command struct {
 }
 
 type result struct {
-	rc int
-	pid int
+	key string
+	operState string
+	process data.Process
+	success bool
 	err error
 }
