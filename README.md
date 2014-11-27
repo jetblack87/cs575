@@ -106,6 +106,6 @@ To update a process, perform a PUT request against the URL:
 `http://<host>:<port>/processes/<process_key>`
 
 With a body containing the process fields that you wish to update (must include the key of the process at a minimum):
-`{"Key":"/maestro/d01/runtime/agents/a01/processes/p01","AdminState":"on"}`
+`{"Key":"L21hZXN0cm8vZDAxL3J1bnRpbWUvYWdlbnRzL2EwMS9wcm9jZXNzZXMvcDAx","AdminState":"on"}`
 
 The above request will update the process to change the "AdminState" of the process to "on".

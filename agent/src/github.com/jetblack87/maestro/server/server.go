@@ -62,7 +62,7 @@ type domainHandler struct{ zkdao *data.ZkDAO }
 func (dh domainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("HTTP '%s' request for url '%s'", r.Method, r.URL)
 	domainKeyRegexp := regexp.MustCompile("/domains/(.*)")
-	domainKey := "/" + string(domainKeyRegexp.FindSubmatch([]byte(r.URL.Path))[1])
+	domainKey := string(domainKeyRegexp.FindSubmatch([]byte(r.URL.Path))[1])
 	switch r.Method {
 	case "GET":
 		dh.getDomains(domainKey, w, r)
@@ -77,7 +77,7 @@ func (dh domainHandler) getDomains(domainKey string, w http.ResponseWriter, r *h
 	var domains []data.Domain
 	var err error
 	if domainKey == "" {
-		domains, err = dh.zkdao.LoadDomains("/maestro", true)
+		domains, err = dh.zkdao.LoadDomains(data.PathToKey("/maestro"), true)
 	} else {
 		var domain data.Domain
 		domain, err = dh.zkdao.LoadDomain(domainKey, true)
@@ -111,7 +111,7 @@ type processesHandler struct{ zkdao *data.ZkDAO }
 func (ph processesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("HTTP '%s' request for url '%s'", r.Method, r.URL)
 	processesKeyRegexp := regexp.MustCompile("/processes/(.*)")
-	processKey := "/" + string(processesKeyRegexp.FindSubmatch([]byte(r.URL.Path))[1])
+	processKey := string(processesKeyRegexp.FindSubmatch([]byte(r.URL.Path))[1])
 	switch r.Method {
 	case "GET":
 		ph.getProcess(processKey, w, r)

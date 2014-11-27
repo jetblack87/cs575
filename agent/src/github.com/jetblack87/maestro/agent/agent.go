@@ -83,7 +83,7 @@ func main() {
 	}
 
 	log.Println("Loading the agent configuration")
-	agent, err := zkdao.LoadAgent("/maestro/"+*domainName+"/config/agents/"+*agentName, true)
+	agent, err := zkdao.LoadAgent(data.PathToKey("/maestro/"+*domainName+"/config/agents/"+*agentName), true)
 	if err != nil {
 		panic(err)
 	}
@@ -97,11 +97,11 @@ func main() {
 	// Add processes to the runtime configuration, adding watches to admin_state
 	for key := range agent.Processes {
 		log.Println("Loading processes from config: " + agent.Processes[key].ProcessClass)
-		agent.Processes[key], err = zkdao.LoadProcess(agent.Processes[key].ProcessClass, true)
+		agent.Processes[key], err = zkdao.LoadProcess(data.PathToKey(agent.Processes[key].ProcessClass), true)
 		if err != nil {
 			panic(err)
 		}
-		agent.Processes[key].Key = "/maestro/"+*domainName+"/runtime/agents/"+agent.Name+"/processes/"+agent.Processes[key].Name
+		agent.Processes[key].Key = data.PathToKey("/maestro/"+*domainName+"/runtime/agents/"+agent.Name+"/processes/"+agent.Processes[key].Name)
 		if agent.Processes[key].AdminState == "" {
 			// Default to on
 			log.Println("Defaulting admin_state to 'on'")
@@ -115,14 +115,14 @@ func main() {
 		log.Printf("Failed to remove agent runtime configuration")
 		panic(err)
 	}
-	err = zkdao.UpdateAgent("/maestro/"+*domainName+"/runtime/agents/"+agent.Name, agent, true)
+	err = zkdao.UpdateAgent(data.PathToKey("/maestro/"+*domainName+"/runtime/agents/"+agent.Name), agent, true)
 	if err != nil {
 		panic(err)
 	}
 
 	// Add watches for all admin_state nodes
 	for key := range agent.Processes {
-		adminStatePath := agent.Processes[key].Key+"/admin_state"
+		adminStatePath := data.KeyToPath(agent.Processes[key].Key)+"/admin_state"
 		log.Println("Adding watch to node: " + adminStatePath)
 		err := zkdao.Watch(adminStatePath, watchChannel)
 		if err != nil {
@@ -149,7 +149,7 @@ func main() {
 				if err != nil {
 					log.Printf("Error getting data for path '%s': %s\n", w.Path, err.Error())
 				} else {
-					process, err2 := zkdao.LoadProcess(path.Dir(w.Path), true)
+					process, err2 := zkdao.LoadProcess(data.PathToKey(path.Dir(w.Path)), true)
 					if err2 != nil {
 						log.Printf("Error loading process '%s': %s\n", w.Path, err2)
 					} else {
@@ -182,12 +182,12 @@ func main() {
 	    		
 	    		// Touch the admin_state node to get process turned back on
 	    		if p.AdminState == "on" && p.OperState == "off" {
-	    			zkdao.SetValue(p.Key + "/admin_state", []byte(p.AdminState))
+	    			zkdao.SetValue(data.KeyToPath(p.Key) + "/admin_state", []byte(p.AdminState))
 	    		}
 			}
 			case <-signalChannel: // FIXME this doesn't seem to work (at least not on Windows)
 			log.Println("Received signal")
-			a,err := zkdao.LoadAgent("/maestro/"+*domainName+"/runtime/agents/"+agent.Name,true)
+			a,err := zkdao.LoadAgent(data.PathToKey("/maestro/"+*domainName+"/runtime/agents/"+agent.Name),true)
 			if err != nil {
 				log.Println("Error retrieving agent")
 			} else {
@@ -213,9 +213,7 @@ func loadAgentConfig(agentConfig, agentName, domainName string) error {
 		if err != nil {
 			return err
 		}
-		err = zkdao.UpdateAgent(
-			"/maestro/"+domainName+"/config/agents/"+agentName,
-			agent, true)
+		err = zkdao.UpdateAgent(data.PathToKey("/maestro/"+domainName+"/config/agents/"+agentName), agent, true)
 		if err != nil {
 			return err
 		}
@@ -237,9 +235,7 @@ func loadProcessesConfig(processesConfig, domainName string) error {
 			return err
 		}
 		for _, process := range processes {
-			err = zkdao.UpdateProcess(
-				"/maestro/"+domainName+"/config/processes/"+process.Name,
-				process, true)
+			err = zkdao.UpdateProcess(data.PathToKey("/maestro/"+domainName+"/config/processes/"+process.Name), process, true)
 			if err != nil {
 				return err
 			}
