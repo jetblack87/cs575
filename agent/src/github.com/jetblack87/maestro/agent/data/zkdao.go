@@ -46,6 +46,9 @@ func (zkdao *ZkDAO) LoadDomain(key string, recursive bool) (Domain, error) {
 		config, err := zkdao.LoadStaticConfig(key + "/config", recursive)
 		if err != nil { return domain, err }
 		domain.Config = config
+		runtime, err := zkdao.LoadRuntimeConfig(key + "/runtime", recursive)
+		if err != nil { return domain, err }
+		domain.Runtime = runtime
 	} else {
         log.Println("Domain node does not exist: " + key)
 	}
@@ -70,9 +73,25 @@ func (zkdao *ZkDAO) LoadStaticConfig(key string, recursive bool) (StaticConfig, 
 			config.Processes = append(config.Processes, process) 
 		}
 	} else {
-        log.Println("Static Config node does not exist: " + key)
+        log.Println("Static config node does not exist: " + key)
 	}
 	return config, nil
+}
+
+func (zkdao *ZkDAO) LoadRuntimeConfig(key string, recursive bool) (RuntimeConfig, error) {
+	var runtime RuntimeConfig
+	exists,_,_ := zkdao.client.Exists(key)
+	if exists {
+		agentsNode,_,_ := zkdao.client.Children(key + "/agents")
+		for _,agentNode := range agentsNode {
+			agent, err := zkdao.LoadAgent(key + "/agents/" + agentNode, recursive)
+			if err != nil { return runtime, err }
+			runtime.Agents = append(runtime.Agents, agent) 
+		}
+	} else {
+        log.Println("Runtime config node does not exist: " + key)
+	}
+	return runtime, nil
 }
 
 func (zkdao *ZkDAO) LoadAgent(key string, recursive bool) (Agent, error) {
