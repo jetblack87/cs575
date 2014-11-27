@@ -12,6 +12,9 @@ To run `maestro`, you must:
 1. download and install ZooKeeper: https://zookeeper.apache.org
 2. start an instance of the server using `zkServer` tool
 
+Building
+========
+
 Building the Agent
 ------------------
 1. download and install go: https://golang.org/doc/install
@@ -20,9 +23,17 @@ Building the Agent
 4. compile the agent: `go build github.com/jetblack87/maestro/agent`
 
 Building config loader
----------------------
+----------------------
 1. follow steps 1-3 above for building agent
 2. compile the loader: `go build github.com/jetblack87/maestro/zkload`
+
+Building the server
+-------------------
+1. follow steps 1-3 above for building agent
+2. compile the server: `go build github.com/jetblack87/maestro/server`
+
+Running
+=======
 
 Loading config
 --------------
@@ -62,3 +73,39 @@ Like the loader, agent assumes that the ZooKeeper server is running on localhost
 
 **NOTE:** to see the full usage, run `agent -help`
 
+Running the Server
+------------------
+Once your configuration has been loaded, you can now start the server process.
+
+The server can be used to query and update the domain configuration.
+
+Running the `server` executable will start a webserver listening on port 8080 by default. If a custom port is needed, the `-port` option can be supplied:
+`server -port 9090`
+
+The server also accepts the `-zookeeper` argument to point to an alternate ZooKeeper server.
+
+### GET requests
+
+To query for all of the domains in the configuration, perform a GET request on the following URL:
+`http://<host>:<port>/domains`
+
+To query for a specific domain, perform a GET request on the following URL:
+`http://<host>:<port>/domains/<domain_key>`
+
+Where `<domain_key>` is the key of the domain for which you are querrying.
+
+Similarly, you can query for a specific process by performing a GET request on the following URL:
+`http://<host>:<port>/processes/<process_key>`
+
+Where `<process_key>` is the key of the process for which you are querrying.
+
+
+### PUT requests
+
+To update a process, perform a PUT request against the URL:
+`http://<host>:<port>/processes/<process_key>`
+
+With a body containing the process fields that you wish to update (must include the key of the process at a minimum):
+`{"Key":"/maestro/d01/runtime/agents/a01/processes/p01","AdminState":"on"}`
+
+The above request will update the process to change the "AdminState" of the process to "on".
