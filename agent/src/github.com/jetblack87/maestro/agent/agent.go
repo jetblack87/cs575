@@ -280,9 +280,11 @@ func startAndMonitorProcesses (startRequest *processStartRequest) {
 		    		if processMap[c.process.Key] != nil {
 				        processMap[c.process.Key].Process.Kill()
 				        delete(processMap, c.process.Key)
+				        c.process.OperState = "off"
+       				    startRequest.resultChan <- &result{process : c.process}
 				    } else {
 				    	log.Println("Process is already stopped: " + c.process.Key)
-				    }
+				    }				    
 		    	case "on":
 		        	if processMap[c.process.Key] == nil {
 			        	log.Println("Starting process: " + c.process.Key)
@@ -296,6 +298,7 @@ func startAndMonitorProcesses (startRequest *processStartRequest) {
 							processMap[c.process.Key] = cmd
 							// Send the result back
 							c.process.OperState = "on"
+							c.process.Pid = processMap[c.process.Key].Process.Pid
 							startRequest.resultChan <- &result{process : c.process}
 						}
 		        	} else {
