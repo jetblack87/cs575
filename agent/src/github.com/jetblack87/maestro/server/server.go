@@ -66,7 +66,7 @@ func (dh domainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		dh.getDomains(domainKey, w, r)
-	case "PUT":
+	case "PATCH":
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte("Method not allowed: " + r.Method))
@@ -115,7 +115,7 @@ func (ph processesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		ph.getProcess(processKey, w, r)
-	case "PUT":
+	case "PATCH":
 	    requestJson, err := ioutil.ReadAll(r.Body)
 	    if err != nil {
 			w.Write([]byte("Bad request: " + err.Error()))
