@@ -100,12 +100,12 @@ Similarly, you can query for a specific process by performing a GET request on t
 Where `<process_key>` is the key of the process for which you are querrying.
 
 
-### PUT requests
+### PATCH requests
 
-To update a process, perform a PUT request against the URL:
+To update a process, perform a PATCH request against the URL:
 `http://<host>:<port>/processes/<process_key>`
 
-With a body containing the process fields that you wish to update (must include the key of the process at a minimum):
-`{"Key":"L21hZXN0cm8vZDAxL3J1bnRpbWUvYWdlbnRzL2EwMS9wcm9jZXNzZXMvcDAx","AdminState":"on"}`
+With a body containing the process fields that you wish to update:
+`{"AdminState":"on"}`
 
 The above request will update the process to change the "AdminState" of the process to "on".
