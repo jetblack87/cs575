@@ -13,13 +13,18 @@
 		$routeProvider.when('/', {
 			controller : 'TreeController',
 			templateUrl : '../views/partials/splash.html'
-		}).when('/details/:maestroNode*', {
-			controller : 'DetailsController',
+		}).when('/domains/:maestroNodeKey', {
+			controller : 'DomainsController',
+			templateUrl : '../views/partials/domains.html'
+		}).when('/agents/:maestroNodeKey', {
+			controller : 'DummyDetailsController',
 			templateUrl : '../views/partials/details.html'
+		}).when('/processes/:maestroNodeKey', {
+			controller : 'ProcessesController',
+			templateUrl : '../views/partials/processes.html'
 		}).otherwise({
 			redirectTo : '/'
 		});
-
 	});
 
 	app.controller('TreeController', function($scope) {
@@ -70,7 +75,7 @@
 					description : 'Good for your children'
 				}
 			} ]
-		} ];
+								} ];
 
 						mock_maestro_data = [ {
 							"Name" : "d01",
@@ -106,7 +111,7 @@
 												"ProcessClass" : "",
 												"AdminState" : "on",
 												"OperState" : "on",
-												"Pid" : 24544
+												"Pid" : 38274
 											} ]
 										} ]
 							},
@@ -172,7 +177,7 @@
 		$scope.my_tree = tree = {};
 	});
 
-	app.controller('DetailsController', function($scope, $routeParams) {
+	app.controller('DummyDetailsController', function($scope, $routeParams) {
 		// Dummy data - details for p01
 		$scope.details = {
 			"Name" : "p01",
@@ -185,7 +190,25 @@
 			"Pid" : 0
 		};
 
-		$scope.maestroNode = $routeParams.maestroNode;
+		$scope.maestroNode = $routeParams.maestroNodeKey;
+	});
+	
+	app.controller('DomainsController', function($scope, $http, $routeParams) {
+		var urlPrefix = "http://tux64-11.cs.drexel.edu:8080/domains/";
+		var url = urlPrefix + $routeParams.maestroNodeKey;
+		
+		$http.get(url).success(function(data) {
+			$scope.details = data;
+		});
+	});
+	
+	app.controller('ProcessesController', function($scope, $http, $routeParams) {
+		var urlPrefix = "http://tux64-11.cs.drexel.edu:8080/processes/";
+		var url = urlPrefix + $routeParams.maestroNodeKey;
+		
+		$http.get(url).success(function(data) {
+			$scope.details = data;
+		});
 	});
 
 }).call(this);

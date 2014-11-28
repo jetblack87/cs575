@@ -1,0 +1,15 @@
+<div>
+   <h2>Details for {{maestroNode}}:</h2>
+   <ul>
+      <li ng-show="details.Name">Name: {{details.Name}}</li>
+      <li ng-show="details.AgentClass">Agent Class: {{details.AgentClass}}</li>
+      <li ng-show="details.OS">Operating System: {{details.OS}}</li>
+      <li ng-show="details.Command">Command: {{details.Command}} {{details.Arguments}}</li>
+      <li ng-show="details.Pid">Process id (PID): {{details.Pid}}</li>
+      <li ng-show="details.AdminState">Admin State: {{details.AdminState}}</li>
+      <li ng-show="details.OperState">Op State: {{details.OperState}}</li>
+   </ul>
+   
+   <button type="button" class="btn btn-success" ng-disabled="details.AdminState == 'on'">Start</button>
+   <button type="button" class="btn btn-danger" ng-disabled="details.AdminState == 'off'">Stop</button>
+</div>
