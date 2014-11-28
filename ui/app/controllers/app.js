@@ -206,9 +206,31 @@
 		var urlPrefix = "http://tux64-11.cs.drexel.edu:8080/processes/";
 		var url = urlPrefix + $routeParams.maestroNodeKey;
 		
-		$http.get(url).success(function(data) {
+		$scope.getProcessData = function() {
+			$http.get(url).success(function(data) {
+		}
 			$scope.details = data;
-		});
+		})};
+		
+		$scope.startProcess = function() {
+			var startData = '{"AdminState": "on"}';
+			
+			$http.patch(url, startData).success(function(data) {
+				$scope.details = data;
+			});
+		};
+		
+		$scope.stopProcess = function() {
+			var stopData = '{"AdminState": "off"}';
+			
+			$http.patch(url, stopData).success(function(data) {
+				$scope.details = data;
+			});
+		};
+		
+		// Actually get the process data when the controller first runs
+		$scope.getProcessData();
+		
 	});
 
 }).call(this);
