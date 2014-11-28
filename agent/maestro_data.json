@@ -10,12 +10,26 @@
                         "ProcessClass":"/maestro/d01/config/processes/p01"
                     }
                 ]
+            },
+            {
+                "Name":"a02_linux",
+                "Processes":[
+                    {
+                        "Name":"p02_linux",
+                        "ProcessClass":"/maestro/d01/config/processes/p02_linux"
+                    }
+                ]
             }
         ],
         "Processes":[
             {
                 "Name":"p01",
                 "Command":"C:/Windows/notepad.exe"
+            },
+            {
+                "Name":"p02_linux",
+                "Command":"/bin/sleep",
+                "Arguments":"1000"
             }
         ]
     }
