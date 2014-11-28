@@ -45,7 +45,7 @@ func LoadFile(zookeeper string, jsonData []byte) {
 	if err != nil {
 		panic(err)
 	}
-	err = zkdao.UpdateDomain("/maestro/" + domain.Name, domain, true)
+	err = zkdao.UpdateDomain(data.PathToKey("/maestro/" + domain.Name), domain, true)
 	if err != nil {
 		panic(err)
 	}
@@ -57,7 +57,7 @@ func DumpFile(zookeeper string) {
 	if err != nil {
 		panic(err)
 	}
-	domains, err := zkdao.LoadDomains("/maestro", true)
+	domains, err := zkdao.LoadDomains(data.PathToKey("/maestro"), true)
 		if err != nil {
 		panic(err)
 	}
