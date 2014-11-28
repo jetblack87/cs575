@@ -19,7 +19,7 @@ Building the Agent
 ------------------
 1. download and install go: https://golang.org/doc/install
 2. from the agent directory, run `export GOPATH=$PWD`
-3. run `go git https://github.com/samuel/go-zookeeper` to acquire a required library
+3. run `go get github.com/samuel/go-zookeeper` to acquire a required library
 4. compile the agent: `go build github.com/jetblack87/maestro/agent`
 
 Building config loader
