@@ -11,8 +11,10 @@
 
 	app.config(function($routeProvider) {
 		$routeProvider.when('/', {
+			controller : 'TreeController',
 			templateUrl : '../views/partials/splash.html'
-		}).when('/details/:animalVeggie', {
+		}).when('/details/:maestroNode*', {
+			controller : 'DetailsController',
 			templateUrl : '../views/partials/details.html'
 		}).otherwise({
 			redirectTo : '/'
@@ -20,22 +22,14 @@
 
 	});
 
-	app.controller('TreeController', function($scope, $timeout, $routeParams,
-			$location) {
-		var apple_selected, tree, treedata_avm;
+	app.controller('TreeController', function($scope) {
+		var tree, treedata_avm, mock_maestro_data;
 		$scope.my_tree_handler = function(branch) {
-			$location.path = "/details/vegetable";
-			
 			var _ref;
 			$scope.output = 'You selected: ' + branch.label;
 			if ((_ref = branch.data) != null ? _ref.description : void 0) {
 				return $scope.output += ' (' + branch.data.description + ')';
 			}
-
-			$scope.avm = branch.label;
-		};
-		apple_selected = function(branch) {
-			return $scope.output = 'APPLE! : ' + branch.label;
 		};
 
 		treedata_avm = [ {
@@ -77,10 +71,121 @@
 				}
 			} ]
 		} ];
-		$scope.my_data = treedata_avm;
-		$scope.my_tree = tree = {};
 
-		$scope.avm = $routeParams.animalVeggie;
+						mock_maestro_data = [ {
+							"Name" : "d01",
+							"Key" : "L21hZXN0cm8vZDAx",
+							"Runtime" : {
+								"Agents" : [
+										{
+											"Name" : "a01",
+											"Key" : "L21hZXN0cm8vZDAxL3J1bnRpbWUvYWdlbnRzL2EwMQ==",
+											"AgentClass" : "",
+											"OS" : "",
+											"Processes" : [ {
+												"Name" : "p01",
+												"Key" : "L21hZXN0cm8vZDAxL3J1bnRpbWUvYWdlbnRzL2EwMS9wcm9jZXNzZXMvcDAx",
+												"Command" : "C:/Windows/notepad.exe",
+												"Arguments" : "",
+												"ProcessClass" : "",
+												"AdminState" : "on",
+												"OperState" : "on",
+												"Pid" : 6116
+											} ]
+										},
+										{
+											"Name" : "a02_linux",
+											"Key" : "L21hZXN0cm8vZDAxL3J1bnRpbWUvYWdlbnRzL2EwMl9saW51eA==",
+											"AgentClass" : "",
+											"OS" : "",
+											"Processes" : [ {
+												"Name" : "p02_linux",
+												"Key" : "L21hZXN0cm8vZDAxL3J1bnRpbWUvYWdlbnRzL2EwMl9saW51eC9wcm9jZXNzZXMvcDAyX2xpbnV4",
+												"Command" : "/bin/sleep",
+												"Arguments" : "1000",
+												"ProcessClass" : "",
+												"AdminState" : "on",
+												"OperState" : "on",
+												"Pid" : 24544
+											} ]
+										} ]
+							},
+							"Config" : {
+								"Agents" : [
+										{
+											"Name" : "a01",
+											"Key" : "L21hZXN0cm8vZDAxL2NvbmZpZy9hZ2VudHMvYTAx",
+											"AgentClass" : "",
+											"OS" : "",
+											"Processes" : [ {
+												"Name" : "p01",
+												"Key" : "L21hZXN0cm8vZDAxL2NvbmZpZy9hZ2VudHMvYTAxL3Byb2Nlc3Nlcy9wMDE=",
+												"Command" : "",
+												"Arguments" : "",
+												"ProcessClass" : "/maestro/d01/config/processes/p01",
+												"AdminState" : "",
+												"OperState" : "",
+												"Pid" : 0
+											} ]
+										},
+										{
+											"Name" : "a02_linux",
+											"Key" : "L21hZXN0cm8vZDAxL2NvbmZpZy9hZ2VudHMvYTAyX2xpbnV4",
+											"AgentClass" : "",
+											"OS" : "",
+											"Processes" : [ {
+												"Name" : "p02_linux",
+												"Key" : "L21hZXN0cm8vZDAxL2NvbmZpZy9hZ2VudHMvYTAyX2xpbnV4L3Byb2Nlc3Nlcy9wMDJfbGludXg=",
+												"Command" : "",
+												"Arguments" : "",
+												"ProcessClass" : "/maestro/d01/config/processes/p02_linux",
+												"AdminState" : "",
+												"OperState" : "",
+												"Pid" : 0
+											} ]
+										} ],
+								"Processes" : [
+										{
+											"Name" : "p02_linux",
+											"Key" : "L21hZXN0cm8vZDAxL2NvbmZpZy9wcm9jZXNzZXMvcDAyX2xpbnV4",
+											"Command" : "/bin/sleep",
+											"Arguments" : "1000",
+											"ProcessClass" : "",
+											"AdminState" : "",
+											"OperState" : "",
+											"Pid" : 0
+										},
+										{
+											"Name" : "p01",
+											"Key" : "L21hZXN0cm8vZDAxL2NvbmZpZy9wcm9jZXNzZXMvcDAx",
+											"Command" : "C:/Windows/notepad.exe",
+											"Arguments" : "",
+											"ProcessClass" : "",
+											"AdminState" : "",
+											"OperState" : "",
+											"Pid" : 0
+										} ]
+							}
+						} ];
+
+		$scope.domains = mock_maestro_data;
+		$scope.my_tree = tree = {};
+	});
+
+	app.controller('DetailsController', function($scope, $routeParams) {
+		// Dummy data - details for p01
+		$scope.details = {
+			"Name" : "p01",
+			"Key" : "L21hZXN0cm8vZDAxL2NvbmZpZy9wcm9jZXNzZXMvcDAx",
+			"Command" : "C:/Windows/notepad.exe",
+			"Arguments" : "",
+			"ProcessClass" : "",
+			"AdminState" : "on",
+			"OperState" : "on",
+			"Pid" : 0
+		};
+
+		$scope.maestroNode = $routeParams.maestroNode;
 	});
 
 }).call(this);
