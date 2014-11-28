@@ -51,15 +51,15 @@
 				</ul>
 				<ul>
 					<li ng-repeat-start="domain in domains"><a
-						href="#/details/{{domain.Name}}">{{domain.Name}}</a></li>
+						href="#/domains/{{domain.Key}}">{{domain.Name}}</a></li>
 					<span>Agents:</span>
 					<ul>
 						<li ng-repeat-start="agent in domain.Runtime.Agents"><a
-							href="#/details/{{domain.Name}}/{{agent.Name}}">{{agent.Name}}</a></li>
+							href="#/agents/{{agent.Key}}">{{agent.Name}}</a></li>
 						<span>Processes:</span>
 						<ul>
 							<li ng-repeat="process in agent.Processes"><a
-								href="#/details/{{domain.Name}}/{{agent.Name}}/{{process.Name}}">{{process.Name}}</a></li>
+								href="#/processes/{{process.Key}}">{{process.Name}}</a></li>
 						</ul>
 						<span ng-repeat-end></span>
 					</ul>
@@ -69,7 +69,6 @@
 
 			<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
 				<h1 class="page-header">Dashboard</h1>
-				<div>{{output}}</div>
 				<div ng-view></div>
 			</div>
 		</div>
