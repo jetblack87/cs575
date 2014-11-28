@@ -1,5 +1,6 @@
 maestro architecture
 ====================
+Maestro is a tool that can be used to monitor and manage processes across multiple hosts on a system.
 
 system architecture
 -------------------

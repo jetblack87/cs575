@@ -3,6 +3,8 @@ cs575
 
 Project for CS575, Software Design
 
+For architecture information, see [architecture/README.md](architecture/README.md)
+
 Apache ZooKeeper
 ----------------
 `maestro` uses Apache ZooKeeper for its shared configuration.
