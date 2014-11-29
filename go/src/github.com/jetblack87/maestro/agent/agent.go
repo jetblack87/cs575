@@ -192,8 +192,8 @@ func main() {
 	    			zkdao.SetValue(data.KeyToPath(p.Key) + "/admin_state", []byte(p.AdminState))
 	    		}
 			}
-			case <-signalChannel: // FIXME this doesn't seem to work (at least not on Windows)
-			log.Println("Received signal")
+			case <-signalChannel:
+			log.Println("Received signal to end")
 			a,err := zkdao.LoadAgent(data.PathToKey("/maestro/"+*domainName+"/runtime/agents/"+agent.Name),true)
 			if err != nil {
 				log.Println("Error retrieving agent")
@@ -202,6 +202,8 @@ func main() {
 					request.commandChan <- &command{process : process, adminState : "off"}
 				}
 			}
+			// Give process monitor time to kill children
+			time.Sleep(10 * time.Second)		   
 			os.Exit(0)
 		}
 	}
