@@ -1,11 +1,7 @@
 (function() {
 	var app, deps;
 
-	deps = [ 'ngRoute', 'angularBootstrapNavTree' ];
-
-	if (angular.version.full.indexOf('1.2') >= 0) {
-		deps.push('ngAnimate');
-	}
+	deps = [ 'ngRoute' ];
 
 	app = angular.module('treeApp', deps);
 
@@ -16,9 +12,6 @@
 		}).when('/domains/:maestroNodeKey', {
 			controller : 'DomainsController',
 			templateUrl : '../views/partials/domains.html'
-		}).when('/agents/:maestroNodeKey', {
-			controller : 'DummyDetailsController',
-			templateUrl : '../views/partials/details.html'
 		}).when('/processes/:maestroNodeKey', {
 			controller : 'ProcessesController',
 			templateUrl : '../views/partials/processes.html'
@@ -33,22 +26,6 @@
 			$scope.domains = data;
 			$scope.my_tree = tree = {};
 		});
-	});
-
-	app.controller('DummyDetailsController', function($scope, $routeParams) {
-		// Dummy data - details for p01
-		$scope.details = {
-			"Name" : "p01",
-			"Key" : "L21hZXN0cm8vZDAxL2NvbmZpZy9wcm9jZXNzZXMvcDAx",
-			"Command" : "C:/Windows/notepad.exe",
-			"Arguments" : "",
-			"ProcessClass" : "",
-			"AdminState" : "on",
-			"OperState" : "on",
-			"Pid" : 0
-		};
-
-		$scope.maestroNode = $routeParams.maestroNodeKey;
 	});
 	
 	app.controller('DomainsController', function($scope, $http, $routeParams) {
