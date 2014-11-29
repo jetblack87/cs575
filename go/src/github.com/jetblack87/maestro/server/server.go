@@ -61,12 +61,22 @@ type domainHandler struct{ zkdao *data.ZkDAO }
 
 func (dh domainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("HTTP '%s' request for url '%s'", r.Method, r.URL)
+    
+    if origin := r.Header.Get("Origin"); origin != "" {
+        w.Header().Set("Access-Control-Allow-Origin", origin)
+        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
+        w.Header().Set("Access-Control-Allow-Headers",
+            "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+    }
+
 	domainKeyRegexp := regexp.MustCompile("/domains/(.*)")
 	domainKey := string(domainKeyRegexp.FindSubmatch([]byte(r.URL.Path))[1])
 	switch r.Method {
 	case "GET":
 		dh.getDomains(domainKey, w, r)
 	case "PATCH":
+	case "OPTIONS":
+	    return
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte("Method not allowed: " + r.Method))
@@ -110,6 +120,14 @@ type processesHandler struct{ zkdao *data.ZkDAO }
 
 func (ph processesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("HTTP '%s' request for url '%s'", r.Method, r.URL)
+
+    if origin := r.Header.Get("Origin"); origin != "" {
+        w.Header().Set("Access-Control-Allow-Origin", origin)
+        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
+        w.Header().Set("Access-Control-Allow-Headers",
+            "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+    }
+
 	processesKeyRegexp := regexp.MustCompile("/processes/(.*)")
 	processKey := string(processesKeyRegexp.FindSubmatch([]byte(r.URL.Path))[1])
 	switch r.Method {
@@ -123,6 +141,8 @@ func (ph processesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	    } else {
 			ph.updateProcess(processKey, requestJson, w, r) 	    	
 	    }
+    case "OPTIONS":
+    	return
 	default:
 		w.Write([]byte("Method not allowed: " + r.Method))
 		w.WriteHeader(http.StatusMethodNotAllowed)
