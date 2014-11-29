@@ -3,7 +3,7 @@
 
 	deps = [ 'ngRoute' ];
 
-	app = angular.module('treeApp', deps);
+	app = angular.module('maestroApp', deps);
 
 	app.config(function($routeProvider) {
 		$routeProvider.when('/', {
@@ -26,6 +26,10 @@
 			$scope.domains = data;
 			$scope.my_tree = tree = {};
 		});
+		
+		$scope.refreshThePage = function() {
+			location.reload(true);
+		};
 	});
 	
 	app.controller('DomainsController', function($scope, $http, $routeParams) {
@@ -36,36 +40,36 @@
 			$scope.details = data;
 		});
 	});
-	
+
 	app.controller('ProcessesController', function($scope, $http, $routeParams) {
 		var urlPrefix = "http://tux64-11.cs.drexel.edu:8080/processes/";
 		var url = urlPrefix + $routeParams.maestroNodeKey;
-		
+
 		$scope.getProcessData = function() {
 			$http.get(url).success(function(data) {
-		
-			$scope.details = data;
-		})};
-		
+
+				$scope.details = data;
+			})};
+
 		$scope.startProcess = function() {
 			var startData = '{"AdminState": "on"}';
-			
+
 			$http.patch(url, startData).success(function(data) {
 				$scope.details = data;
 			});
 		};
-		
+
 		$scope.stopProcess = function() {
 			var stopData = '{"AdminState": "off"}';
-			
+
 			$http.patch(url, stopData).success(function(data) {
 				$scope.details = data;
 			});
 		};
-		
+
 		// Actually get the process data when the controller first runs
 		$scope.getProcessData();
-		
+
 	});
 
 }).call(this);
