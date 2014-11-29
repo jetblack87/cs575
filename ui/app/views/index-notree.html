@@ -6,8 +6,6 @@
 <!-- <link rel="icon" href="Maestro"/> -->
 <!-- Provided sytlesheets: Bootstrap, ABN Tree, and FontAwesome -->
 <link rel="stylesheet" href="../../provided/styles/bootstrap.min.css" />
-<link rel="stylesheet" href="../../provided/styles/abn_tree.css">
-<link rel="stylesheet" href="../../provided/styles/font-awesome.min.css">
 
 <!-- Custom style -->
 <link rel="stylesheet" href="styles/custom.css" />
@@ -27,13 +25,13 @@
 				<ul class="nav navbar-nav">
 					<!-- What should these be?  TBD -->
 					<li><a href="#">Dashboard</a></li>
-					<li><a href="#TBD">Settings</a></li>
-					<li><a href="#TBD">Profile</a></li>
-					<li><a href="#TBD">Help</a></li>
+<!-- 					<li><a href="#TBD">Settings</a></li> -->
+<!-- 					<li><a href="#TBD">Profile</a></li> -->
+<!-- 					<li><a href="#TBD">Help</a></li> -->
 				</ul>
-				<form class="navbar-form navbar-right">
-					<input type="text" class="form-control" placeholder="Search..." />
-				</form>
+<!-- 				<form class="navbar-form navbar-right"> -->
+<!-- 					<input type="text" class="form-control" placeholder="Search..." /> -->
+<!-- 				</form> -->
 			</div>
 			<!--/.nav-collapse -->
 		</div>
@@ -41,21 +39,16 @@
 
 
 	<!-- Main page -->
-	<div ng-app="treeApp" class="container-fluid">
+	<div ng-app="maestroApp" class="container-fluid">
 		<div ng-controller="TreeController" class="row">
 			<div class="col-sm-3 col-md-2 sidebar">
 				<h3>Tree View</h3>
-				<ul>
-					<li><a href="#/details/animal">Animal</a></li>
-					<li><a href="#/details/vegetable">Vegetable</a></li>
-				</ul>
 				<ul>
 					<li ng-repeat-start="domain in domains"><a
 						href="#/domains/{{domain.Key}}">{{domain.Name}}</a></li>
 					<span>Agents:</span>
 					<ul>
-						<li ng-repeat-start="agent in domain.Runtime.Agents"><a
-							href="#/agents/{{agent.Key}}">{{agent.Name}}</a></li>
+						<li ng-repeat-start="agent in domain.Runtime.Agents">{{agent.Name}}</li>
 						<span>Processes:</span>
 						<ul>
 							<li ng-repeat="process in agent.Processes"><a
@@ -69,6 +62,7 @@
 
 			<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
 				<h1 class="page-header">Dashboard</h1>
+				<button type="button" class="btn btn-default" ng-click="refreshThePage()">Refresh</button>
 				<div ng-view></div>
 			</div>
 		</div>
@@ -76,8 +70,6 @@
 
 	<script src="../../provided/scripts/angular.min.js"></script>
 	<script src="../../provided/scripts/angular-route.min.js"></script>
-	<script src="../../provided/scripts/angular-animate.min.js"></script>
-	<script src="../../provided/scripts/abn_tree_directive.js"></script>
 	<script src="../controllers/app.js"></script>
 </body>
 </html>
