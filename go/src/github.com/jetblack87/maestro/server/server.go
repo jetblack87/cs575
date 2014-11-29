@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"flag"
 	"github.com/jetblack87/maestro/data"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	"io/ioutil"
 )
 
 const APP_VERSION = "0.1"
@@ -61,13 +61,13 @@ type domainHandler struct{ zkdao *data.ZkDAO }
 
 func (dh domainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("HTTP '%s' request for url '%s'", r.Method, r.URL)
-    
-    if origin := r.Header.Get("Origin"); origin != "" {
-        w.Header().Set("Access-Control-Allow-Origin", origin)
-        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
-        w.Header().Set("Access-Control-Allow-Headers",
-            "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-    }
+
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
 
 	domainKeyRegexp := regexp.MustCompile("/domains/(.*)")
 	domainKey := string(domainKeyRegexp.FindSubmatch([]byte(r.URL.Path))[1])
@@ -76,7 +76,7 @@ func (dh domainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		dh.getDomains(domainKey, w, r)
 	case "PATCH":
 	case "OPTIONS":
-	    return
+		return
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte("Method not allowed: " + r.Method))
@@ -100,10 +100,18 @@ func (dh domainHandler) getDomains(domainKey string, w http.ResponseWriter, r *h
 		log.Println(errMsg + "\n" + err.Error())
 	} else {
 		var responseJson []byte
-		if r.URL.Query().Get(PRETTY_PRINT_PARAM) == "true" {
-			responseJson, err = json.MarshalIndent(domains, "", "   ")
+		if domainKey == "" {
+			if r.URL.Query().Get(PRETTY_PRINT_PARAM) == "true" {
+				responseJson, err = json.MarshalIndent(domains, "", "   ")
+			} else {
+				responseJson, err = json.Marshal(domains)
+			}
 		} else {
-			responseJson, err = json.Marshal(domains)
+			if r.URL.Query().Get(PRETTY_PRINT_PARAM) == "true" {
+				responseJson, err = json.MarshalIndent(domains[0], "", "   ")
+			} else {
+				responseJson, err = json.Marshal(domains[0])
+			}
 		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -121,12 +129,12 @@ type processesHandler struct{ zkdao *data.ZkDAO }
 func (ph processesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("HTTP '%s' request for url '%s'", r.Method, r.URL)
 
-    if origin := r.Header.Get("Origin"); origin != "" {
-        w.Header().Set("Access-Control-Allow-Origin", origin)
-        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
-        w.Header().Set("Access-Control-Allow-Headers",
-            "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-    }
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
 
 	processesKeyRegexp := regexp.MustCompile("/processes/(.*)")
 	processKey := string(processesKeyRegexp.FindSubmatch([]byte(r.URL.Path))[1])
@@ -134,15 +142,15 @@ func (ph processesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		ph.getProcess(processKey, w, r)
 	case "PATCH":
-	    requestJson, err := ioutil.ReadAll(r.Body)
-	    if err != nil {
+		requestJson, err := ioutil.ReadAll(r.Body)
+		if err != nil {
 			w.Write([]byte("Bad request: " + err.Error()))
-			w.WriteHeader(http.StatusBadRequest)   	
-	    } else {
-			ph.updateProcess(processKey, requestJson, w, r) 	    	
-	    }
-    case "OPTIONS":
-    	return
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			ph.updateProcess(processKey, requestJson, w, r)
+		}
+	case "OPTIONS":
+		return
 	default:
 		w.Write([]byte("Method not allowed: " + r.Method))
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -182,7 +190,7 @@ func (ph processesHandler) getProcess(processKey string, w http.ResponseWriter, 
 }
 
 func (ph processesHandler) updateProcess(processKey string, requestJson []byte, w http.ResponseWriter, r *http.Request) {
-	log.Printf("Process request for process '%s' with body:\n%s\n", processKey, string(requestJson)) 
+	log.Printf("Process request for process '%s' with body:\n%s\n", processKey, string(requestJson))
 	if processKey == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		errMsg := "Process key is required"
