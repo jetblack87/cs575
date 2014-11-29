@@ -93,6 +93,10 @@ func main() {
 
 	// Remove old runtime config for this agent
 	err = zkdao.RemoveRecursive("/maestro/"+*domainName+"/runtime/agents/"+agent.Name)
+	if err != nil {
+		log.Printf("Failed to remove agent runtime configuration")
+		panic(err)
+	}
 
 	// Add processes to the runtime configuration, adding watches to admin_state
 	for key := range agent.Processes {
@@ -111,10 +115,6 @@ func main() {
 	}
 
 	log.Println("Adding agent to runtime configuration")
-	if err != nil {
-		log.Printf("Failed to remove agent runtime configuration")
-		panic(err)
-	}
 	err = zkdao.UpdateAgent(data.PathToKey("/maestro/"+*domainName+"/runtime/agents/"+agent.Name), agent, true)
 	if err != nil {
 		panic(err)
