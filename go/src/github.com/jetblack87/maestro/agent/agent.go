@@ -119,6 +119,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	
+	str, err := zkdao.CreateEphemeral("/maestro/"+*domainName+"/runtime/agents/"+agent.Name+"/eph", []byte("I am alive"))
+	if err != nil {
+		errMsg := "Error creating ephemeral node: " + str
+		log.Println(errMsg)
+		panic(err)
+	}
 
 	// Add watches for all admin_state nodes
 	for key := range agent.Processes {
