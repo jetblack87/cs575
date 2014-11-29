@@ -208,7 +208,7 @@
 		
 		$scope.getProcessData = function() {
 			$http.get(url).success(function(data) {
-		}
+		
 			$scope.details = data;
 		})};
 		
