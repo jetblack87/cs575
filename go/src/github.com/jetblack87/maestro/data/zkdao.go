@@ -112,6 +112,14 @@ func (zkdao *ZkDAO) LoadAgent(key string, recursive bool) (Agent, error) {
 			if err != nil { return agent, err }
 			agent.Processes = append(agent.Processes, process) 
 		}
+
+		exists,_,_ = zkdao.client.Exists(nodepath + "/eph")
+		if exists { 
+			data,_,err := zkdao.client.Get(nodepath + "/eph")
+			if err == nil {
+				agent.Eph = string(data)
+			}
+		}
 	} else {
         log.Println("Agent node does not exist: " + nodepath)
 	}
@@ -324,6 +332,26 @@ func (zkdao *ZkDAO) RemoveRecursive(path string) (error) {
 	return nil
 }
 
+// Creates an ephemeral node for the given path
+func (zkdao ZkDAO) CreateEphemeral(path string, data []byte) (string, error) {
+	return zkdao.client.Create(path,data,zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
+}
+
+// Converts a key to a ZK path
+func KeyToPath(key string) (string) {
+	path, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return ""
+	} else {
+		return string(path)
+	}
+}
+
+// Converts a ZK path to a key
+func PathToKey(path string) (string) {
+	return base64.StdEncoding.EncodeToString([]byte(path))
+}
+
 // #### PRIVATE METHODS ####
 
 func (zkdao *ZkDAO) createOrSet(nodepath string, data []byte, flags int32, acl []zk.ACL) (string, error) {
@@ -356,17 +384,4 @@ func (zkdao *ZkDAO) createWithParents(nodepath string, data []byte, flags int32,
 		}
 	}
 	return zkdao.client.Create(nodepath, data, flags, acl)
-}
-
-func KeyToPath(key string) (string) {
-	path, err := base64.StdEncoding.DecodeString(key)
-	if err != nil {
-		return ""
-	} else {
-		return string(path)
-	}
-}
-
-func PathToKey(path string) (string) {
-	return base64.StdEncoding.EncodeToString([]byte(path))
 }

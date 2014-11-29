@@ -75,6 +75,24 @@ Like the loader, agent assumes that the ZooKeeper server is running on localhost
 
 **NOTE:** to see the full usage, run `agent -help`
 
+On startup, the agent will create an ephemeral node within the ZooKeeper configuration. When he shuts down, that node will eventually be removed. This node can be used to know whether or not the agent is running.
+
+From a server REST call, the ephemeral node can be found in the agent data:
+`
+{
+   "Name": "a01",
+   "Key": "L21hZXN0cm8vZDAxL3J1bnRpbWUvYWdlbnRzL2EwMQ==",
+   "AgentClass": "",
+   "OS": "",
+   "Eph": "I am alive",
+   "Processes": [
+   ]
+}
+`
+
+The agent can be know to be running if the "Eph" field is not equal "".
+
+
 Running the Server
 ------------------
 Once your configuration has been loaded, you can now start the server process.

@@ -21,6 +21,7 @@ type Agent struct {
 	Key string
 	AgentClass string
 	OS string
+	Eph string
 	Processes[] Process
 }
 
