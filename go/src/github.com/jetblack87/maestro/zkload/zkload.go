@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/jetblack87/maestro/agent/data"
+	"github.com/jetblack87/maestro/data"
 	"io/ioutil"
 	"strings"
 )

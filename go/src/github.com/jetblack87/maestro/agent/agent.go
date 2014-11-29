@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"github.com/jetblack87/maestro/agent/data"
+	"github.com/jetblack87/maestro/data"
 	"io/ioutil"
 	"os"
 	"os/exec"
